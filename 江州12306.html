@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="zh-CN" style="background-image: none !important;">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>江州铁路12306报销凭证生成平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0066cc',
+                        secondary: '#4CAF50',
+                        danger: '#f44336',
+                        neutral: '#f0f0f0',
+                        'neutral-dark': '#333333',
+                    },
+                    fontFamily: {
+                        sans: ['Microsoft YaHei', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 保持原始车票样式不变 */
+        .ticket {
+            display: none;
+            position: relative;
+            width: 450px;
+            height: 250px;
+            margin: 20px auto;
+            background: #97BDCF;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .ticket .bg-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            -webkit-mask-image: linear-gradient(to right,
+                rgba(0,0,0,0) 0%,
+                rgba(0,0,0,0.4) 80%,
+                rgba(0,0,0,0.7) 100%
+            );
+            mask-image: linear-gradient(to right,
+                rgba(0,0,0,0) 0%,
+                rgba(0,0,0,0.4) 80%,
+                rgba(0,0,0,0.7) 100%
+            );
+        }
+        .ticket-header, .ticket-footer {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            box-sizing: border-box;
+        }
+        .ticket-header {
+            background: #97BDCF;
+            color: black;
+            height: 40px;
+        }
+        .ticket-footer {
+            color: white;
+            background: #4686A0;
+            height: 25px;
+        }
+        .ticket-header {
+            top: 0;
+            justify-content: space-between;
+        }
+        .ticket-footer {
+            bottom: 0;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .ticket-content {
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            padding: 35px 15px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .route {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 1px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+            width: 100%;
+        }
+        .route::before {
+            content: attr(data-start);
+            margin-right: 20px;
+        }
+        .route::after {
+            content: attr(data-end);
+            margin-left: 20px;
+        }
+        .route span {
+            font-size: 40px;
+        }
+        .ticket-details {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .time {
+            text-align: left;
+            font-family: "Times New Roman", Times, serif;
+            font-size: 18px;
+            padding-left: 2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .passenger-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.15rem;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+        .player-info,
+        .shift-info,
+        .price-info {
+            text-align: left;
+            font-weight: bold;
+            font-family: "Times New Roman", Times, serif;
+            font-size: 16px;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            padding-left: 2rem;
+        }
+        .ticket-id-container {
+            display: flex;
+            flex-direction: column;
+            text-align: right;
+        }
+        .ticket-number {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .passenger-id {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body class="bg-neutral font-sans min-h-screen flex flex-col">
+    <div class="container mx-auto px-4 py-6 flex-grow">
+        <header class="text-center mb-8 flex flex-col items-center gap-2">
+            <h1 class="text-[clamp(2rem,5vw,3rem)] font-bold text-primary mb-2">
+                <i class="fa fa-train mr-2"></i>江州铁路12306报销凭证生成平台
+            </h1>
+            <p class="text-lg">查询可报销的班次</p><br/>
+            欢迎关注B站：
+            <p class="flex flex-row gap-3 mx-auto text-gray-500">
+                江州市市长：@star201
+                <a href="https://space.bilibili.com/2103599412" class="text-blue-500 hover:underline flex flex-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6m-7 1l9-9m-5 0h5v5"></path></svg>
+                </a>
+                江州铁路局局长：@提瓦特工艺-输入吖；
+                <a href="https://space.bilibili.com/1643658754" class="text-blue-500 hover:underline flex flex-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6m-7 1l9-9m-5 0h5v5"></path></svg>
+                </a>
+                江州路桥/江州交建：@Chemsource化源工作室
+                <a href="https://space.bilibili.com/543796790" class="text-blue-500 hover:underline flex flex-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6m-7 1l9-9m-5 0h5v5"></path></svg>
+                </a>
+                江州第一建筑局局长：@小佳哥鸭
+                <a href="https://space.bilibili.com/560157590" class="text-blue-500 hover:underline flex flex-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6m-7 1l9-9m-5 0h5v5"></path></svg>
+                </a>
+            </p>
+        </header>
+        
+        <!-- 音乐控制区 -->
+        <div class="music-control fixed top-4 right-4 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center z-50">
+            <button id="musicBtn" class="music-btn-hover bg-primary text-white px-3 py-1 rounded-full text-sm flex items-center">
+                <i class="fa fa-music mr-1"></i> <span id="musicBtnText">开启音乐</span>
+            </button>
+            <div id="musicStatus" class="w-3 h-3 rounded-full bg-gray-300 mx-2"></div>
+            <div class="volume-control flex items-center">
+                <span class="volume-icon text-gray-600">🔊</span>
+                <input type="range" min="0" max="1" step="0.1" value="0.5" class="volume-slider" id="volumeSlider">
+            </div>
+        </div>
+        <div id="musicError" class="text-red-500 mt-2 text-sm hidden"></div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-12">
+            <!-- 左侧表单区域 -->
+            <div class="lg:col-span-5 bg-white rounded-xl p-6 form-shadow">
+                <h2 class="text-xl font-bold text-primary mb-6 flex items-center">
+                    <i class="fa fa-train mr-2"></i> 车票信息
+                </h2>
+                
+                <form class="space-y-4">
+                    <div class="space-y-2">
+                        <label for="start" class="block text-sm font-medium text-gray-700">起点：</label>
+                        <select id="start" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                            <option value="江州西站">江州西站</option>
+                            <option value="市郊江州西站">市郊江州西站</option>
+                            <option value="西区一矿">西区一矿</option>
+                            <option value="鲸岛东站">鲸岛东站</option>
+                            <option value="江北站">江北站</option>
+                            <option value="江州南站">江州南站</option>
+                        </select>
+                        <div id="start-info" class="text-xs text-gray-500 mt-1">江州市目前最大的铁路交通枢纽</div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="end" class="block text-sm font-medium text-gray-700">终点：</label>
+                        <select id="end" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                            <option value="江州西站">江州西站</option>
+                            <option value="市郊江州西站">市郊江州西站</option>
+                            <option value="西区一矿">西区一矿</option>
+                            <option value="鲸岛东站">鲸岛东站</option>
+                            <option value="江北站">江北站</option>
+                            <option value="江州南站">江州南站</option>
+                        </select>
+                        <div id="end-info" class="text-xs text-gray-500 mt-1">江州铁路编组站</div>
+                    </div>
+                    
+                    <div id="price-preview" class="text-sm text-gray-700 font-medium">预计票价: 13.72 绿宝石</div>
+                    
+                    <div class="space-y-2">
+                        <label for="playerName" class="block text-sm font-medium text-gray-700">游戏名称：</label>
+                        <input type="text" id="playerName" placeholder="输入你的游戏名称" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="departureDate" class="block text-sm font-medium text-gray-700">出发日期：</label>
+                        <input type="date" id="departureDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                        <div id="date-info" class="text-xs text-gray-500 mt-1">可选择今天及未来2天的日期</div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="shift" class="block text-sm font-medium text-gray-700">班次：</label>
+                        <select id="shift" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                            <!-- 班次选项将通过JS动态生成 -->
+                        </select>
+                        <div id="shift-info" class="text-xs text-gray-500 mt-1">请先选择起点、终点和日期</div>
+                    </div>
+                    <div id="form-error-msg" class="space-y-2">
+                    </div>
+                    <div class="flex flex-wrap gap-3 pt-2">
+                        <button type="button" onclick="validateAndGenerate()" class="btn-hover bg-secondary text-white px-6 py-2 rounded-lg font-medium flex items-center">
+                            <i class="fa fa-ticket mr-2"></i> 购买车票
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- 右侧车票和历史记录区域 -->
+            <div class="lg:col-span-7 space-y-8">
+                <!-- 车票显示区域 -->
+                <div class="bg-white rounded-xl p-6 form-shadow">
+                    <h2 class="text-xl font-bold text-primary mb-6 flex items-center">
+                        <i class="fa fa-print mr-2"></i> 已购车票
+                    </h2>
+                    
+                    <div class="ticket-container flex justify-center">
+                        <!-- 原始车票样式保持不变 -->
+                        <div class="ticket" id="ticket">
+                            <img src="https://ticket.codeart.online/" alt="背景图" class="bg-img">
+                            <div class="ticket-header">
+                                <div class="station-name">江州铁路车票</div>
+                                <div class="ticket-id-container">
+                                    <div class="ticket-number" id="ticketNumber">TID: 12345678</div>
+                                    <div class="passenger-id" id="passengerId">PID: ABCDEFGH</div>
+                                </div>
+                            </div>
+                            <div class="ticket-content">
+                                <div class="route" id="route" data-start="" data-end="">
+                                    <span>→</span>
+                                </div>
+                                <div class="ticket-details">
+                                    <div class="time" id="time"></div>
+                                    <div class="passenger-info">
+                                        <div class="player-info">
+                                            <div>玩家：<span id="playerNameDisplay"></span></div>
+                                        </div>
+                                        <div class="shift-info">
+                                            <div>班次：<span id="shiftDisplay"></span></div>
+                                        </div>
+                                        <div class="price-info">
+                                            <div>售价：<span id="priceDisplay"></span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ticket-footer">
+                                <div>欢迎乘坐江州铁路</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 历史记录区域 -->
+                <div class="bg-white rounded-xl p-6 form-shadow overflow-y-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-primary flex items-center">
+                            <i class="fa fa-history mr-2"></i> 购买记录
+                        </h2>
+                    </div>
+                    
+                    <div class="overflow-x-auto h-[350px]" id="historyTable">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs uppercase bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 rounded-tl-lg">起点</th>
+                                    <th class="px-4 py-3">终点</th>
+                                    <th class="px-4 py-3">玩家名称</th>
+                                    <th class="px-4 py-3">班次</th>
+                                    <th class="px-4 py-3">出发时间</th>
+                                    <th class="px-4 py-3">票价</th>
+                                    <th class="px-4 py-3">时间</th>
+                                    <th class="px-4 py-3 rounded-tr-lg">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyBody" class="divide-y divide-gray-200">
+                                <!-- 历史记录将通过JS填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 注意事项 -->
+        <div class="mt-12 bg-white rounded-xl p-6 form-shadow">
+            <h2 class="text-xl font-bold text-primary mb-4 flex items-center">
+                <i class="fa fa-info-circle mr-2"></i> 注意事项
+            </h2>
+            <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                <li>本车票仅供查询，实际请前往服务器购买。</li>
+                <li>所有数据均在本地生成，不会上传到任何服务器。</li>
+                <li>背景音乐可以通过右上角的音乐控制器进行开关和音量调节。</li>
+                <li>使用次数无限制，历史记录保存在浏览器本地存储中。</li>
+                <li>班次选择已根据实际路线进行限制，只能选择符合条件的班次。</li>
+                <li>可以选择当天还未发车的班次以及未来2天的班次。</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- 页脚 -->
+    <footer class="bg-primary text-white py-4 mt-12">
+        <div class="container mx-auto px-4 text-center">
+            <p>© 2025 全群系铁路定制车票生成器 - 保留所有权利</p>
+            <p>制作人员：❤️ 小化 ❤️</p>
+        </div>
+    </footer>
+    
+    <!-- 背景音乐 -->
+    <audio id="bgMusic" loop>
+        <source src="bgm.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // ================= 本地校验码生成算法 =================
+        // 模拟MinGW的rand()函数实现
+        class MinGWRandom {
+            constructor(seed = 1) {
+                this.state = seed;
+            }
+
+            srand(seed) {
+                this.state = seed;
+            }
+
+            rand() {
+                // LCG参数: multiplier = 214013, increment = 2531011
+                this.state = (this.state * 214013 + 2531011) & 0xFFFFFFFF;
+                return (this.state >>> 16) & 0x7FFF; // 返回0~32767的整数
+            }
+        }
+
+        // SRD字符映射表
+        const srdCharToDigit = {
+            'A': "1", 'B': "3", 'C': "5", 'D': "7", 'E': "9",
+            'F': "5", 'G': "4", 'H': "2", 'I': "8", 'J': "11",
+            'K': "13", 'L': "17", 'M': "19", 'N': "10", 'O': "12",
+            'P': "14", 'Q': "16", 'R': "18", 'S': "20", 'T': "22",
+            'U': "24", 'V': "26", 'W': "21", 'X': "23", 'Y': "25", 'Z': "6"
+        };
+        
+        const srdCharoToDigit = {
+            '`': "9901", '~': "9902", '!': "9903", '@': "9904", '#': "9905", '$': "9906", '%': "9907",
+            '^': "9908", '&': "9909", '*': "9910", '(': "9911", ')': "9912", '-': "9913", '_': "9914",
+            '+': "9915", '=': "9916", '[': "9917", ']': "9918", '{': "9919", '}': "9920", '\\': "9921",
+            '|': "9922", ':': "9923", ';': "9924", '"': "9925", "'": "9926", ',': "9927", '.' : "9928",
+            '<': "9929", '>': "9930", '/': "9931", '?': "9932"
+        };
+
+        // CSRDLC字符映射表
+        const charToDigit = {
+            'A': "9801", 'B': "9802", 'C': "9803", 'D': "9804", 'E': "9805",
+            'F': "9806", 'G': "9807", 'H': "9808", 'I': "9809", 'J': "9810",
+            'K': "9811", 'L': "9812", 'M': "9813", 'N': "9814", 'O': "9815",
+            'P': "9816", 'Q': "9817", 'R': "9818", 'S': "9819", 'T': "9820",
+            'U': "9821", 'V': "9822", 'W': "9823", 'X': "9824", 'Y': "9825", 'Z': "9826"
+        };
+        
+        const lToDigit = {
+            'a': "9701", 'b': "9702", 'c': "9703", 'd': "9704", 'e': "9705",
+            'f': "9706", 'g': "9707", 'h': "9708", 'i': "9709", 'j': "9710",
+            'k': "9711", 'l': "9712", 'm': "9713", 'n': "9714", 'o': "9715",
+            'p': "9716", 'q': "9717", 'r': "9718", 's': "9719", 't': "9720",
+            'u': "9721", 'v': "9722", 'w': "9723", 'x': "9724", 'y': "9725", 'z': "9726"
+        };
+        
+        const charoToDigit = {
+            '`': "9901", '~': "9902", '!': "9903", '@': "9904", '#': "9905", '$': "9906", '%': "9907",
+            '^': "9908", '&': "9909", '*': "9910", '(': "9911", ')': "9912", '-': "9913", '_': "9914",
+            '+': "9915", '=': "9916", '[': "9917", ']': "9918", '{': "9919", '}': "9920", '\\': "9921",
+            '|': "9922", ':': "9923", ';': "9924", '"': "9925", "'": "9926", ',': "9927", '.': "9928",
+            '<': "9929", '>': "9930", '/': "9931", '?': "9932",
+            '·': "8901", '！': "8902", '￥': "8903", '…': "8904", '（': "8905", '）': "8906", '—': "8907",
+            '【': "8908", '】': "8909", '、': "8910", '：': "8911", '；': "8912", '“': "8913", '”': "8914",
+            '‘': "8915", '’': "8916", '《': "8917", '》': "8918", '？': "8919"
+        };
+
+        // 生成SRD校验码
+        function generateSRD(input) {
+            let digitStr = "";
+            let modValue = 0;
+            const MOD_BASE = 0x3FFFFFFF; // 1073741823
+
+            for (let c of input) {
+                if (/[A-Za-z]/.test(c)) {
+                    const upperChar = c.toUpperCase();
+                    if (srdCharToDigit[upperChar]) {
+                        const numStr = srdCharToDigit[upperChar];
+                        digitStr += numStr;
+                        for (let digit of numStr) {
+                            modValue = (modValue * 10 + parseInt(digit)) % MOD_BASE;
+                        }
+                    }
+                } else if (/[0-9]/.test(c)) {
+                    digitStr += c;
+                    modValue = (modValue * 10 + parseInt(c)) % MOD_BASE;
+                } else {
+                    if (srdCharoToDigit[c]) {
+                        const numStr = srdCharoToDigit[c];
+                        digitStr += numStr;
+                        for (let digit of numStr) {
+                            modValue = (modValue * 10 + parseInt(digit)) % MOD_BASE;
+                        }
+                    }
+                }
+            }
+
+            let lastSixDigits = 0;
+            if (digitStr.length > 0) {
+                const startIndex = Math.max(0, digitStr.length - 6);
+                const lastSixStr = digitStr.substring(startIndex);
+                lastSixDigits = parseInt(lastSixStr) || 1000000;
+            } else {
+                lastSixDigits = 1000000;
+            }
+
+            const prng = new MinGWRandom(modValue);
+            
+            let randTimes;
+            if (input.length <= 5) randTimes = 2;
+            else if (input.length <= 10) randTimes = 3;
+            else if (input.length <= 15) randTimes = 4;
+            else if (input.length <= 20) randTimes = 5;
+            else randTimes = 6;
+
+            let result = "";
+            for (let i = 0; i < randTimes; i++) {
+                const randNum = prng.rand();
+                const modResult = randNum % lastSixDigits;
+                result += modResult.toString();
+            }
+
+            // 返回前8位字符
+            return result.substring(0, 8);
+        }
+
+        // 生成CSRDLC校验码
+        function generateCSRDLC(input) {
+            let digitStr = "";
+            let modValue = 0;
+            const MOD_BASE = 0x3FFFFFFF; // 1073741823
+
+            for (let c of input) {
+                if (/[A-Z]/.test(c)) {
+                    if (charToDigit[c]) {
+                        const numStr = charToDigit[c];
+                        digitStr += numStr;
+                        for (let digit of numStr) {
+                            modValue = (modValue * 10 + parseInt(digit)) % MOD_BASE;
+                        }
+                    }
+                } else if (/[a-z]/.test(c)) {
+                    if (lToDigit[c]) {
+                        const numStr = lToDigit[c];
+                        digitStr += numStr;
+                        for (let digit of numStr) {
+                            modValue = (modValue * 10 + parseInt(digit)) % MOD_BASE;
+                        }
+                    }
+                } else if (/[0-9]/.test(c)) {
+                    digitStr += c;
+                    modValue = (modValue * 10 + parseInt(c)) % MOD_BASE;
+                } else {
+                    if (charoToDigit[c]) {
+                        const numStr = charoToDigit[c];
+                        digitStr += numStr;
+                        for (let digit of numStr) {
+                            modValue = (modValue * 10 + parseInt(digit)) % MOD_BASE;
+                        }
+                    }
+                }
+            }
+
+            let lastSixDigits = 0;
+            if (digitStr.length > 0) {
+                const startIndex = Math.max(0, digitStr.length - 6);
+                const lastSixStr = digitStr.substring(startIndex);
+                lastSixDigits = parseInt(lastSixStr) || 1000000;
+            } else {
+                lastSixDigits = 1000000;
+            }
+
+            const prng = new MinGWRandom(modValue);
+            
+            let randTimes;
+            if (input.length <= 5) randTimes = 2;
+            else if (input.length <= 10) randTimes = 3;
+            else if (input.length <= 15) randTimes = 4;
+            else if (input.length <= 20) randTimes = 5;
+            else randTimes = 6;
+
+            let result = "";
+            for (let i = 0; i < randTimes; i++) {
+                const randNum = prng.rand();
+                const modResult = randNum % lastSixDigits;
+                result += modResult.toString();
+            }
+
+            // 返回前8位字符
+            return result.substring(0, 8);
+        }
+        
+        // ================= 车票生成核心逻辑 =================
+        // 站台距离权重（用于计算票价）
+        const stationWeights = {
+            "江州西站": 0,
+            "市郊江州西站": 0,
+            "西区一矿": 30,
+            "鲸岛东站": 65,
+            "江北站": 107,
+            "江州南站": 258,
+        };
+        // 车站描述信息
+        const stationDescriptions = {
+            "江州西站": "江州第一座铁路车站，承担着市郊铁路与国铁的枢纽作用",
+            "市郊江州西站": "江州市郊铁路的综合枢纽",
+            "西区一矿": "江州西城矿区的乘降所，工人们通勤的必经之站",
+            "鲸岛东站": "江州首个采用地下建筑的站点",
+            "江北站": "以现实中的一个三级站为原型，江州铁路综合编组和货运站",
+            "江州南站": "江州目前最大的铁路枢纽"
+        };
+
+        // 车次路线信息
+        const trainRoutes = {
+            "C2005": ["鲸岛东站", "江州西站", "江州南站"],
+            "C2008": ["江州南站", "江州西站", "鲸岛东站"],
+            "C2007": ["江北站", "鲸岛东站", "江州西站"],
+            "C2010": ["江州西站", "鲸岛东站", "江北站"],
+            "C2012": ["江北站", "鲸岛东站", "江州南站"],
+            "C2013": ["江州南站", "鲸岛东站", "江北站"],
+            "C2312": ["江北站", "江州西站", "江州南站"],
+            "C2315": ["江州南站", "江州西站", "江北站"],
+            "C2000": ["江州南站", "江北站"],
+            "C2001": ["江北站", "江州南站"],
+            "S201": ["市郊江州西站", "西区一矿"],
+            "S202": ["西区一矿", "市郊江州西站"]
+        };
+
+        // 车次时刻表配置
+        const trainSchedules = {
+            "C2005": { startTime: "08:00", interval: 60, count: 12 }, // 8:00开始，每小时一班，共12班
+            "C2008": { startTime: "08:00", interval: 60, count: 12 },
+            "C2012": { startTime: "08:15", interval: 60, count: 12 },
+            "C2013": { startTime: "08:15", interval: 60, count: 12 },
+            "C2312": { startTime: "08:30", interval: 60, count: 12 },
+            "C2315": { startTime: "08:30", interval: 60, count: 12 },
+            "C2000": { startTime: "08:45", interval: 60, count: 12 },
+            "C2001": { startTime: "08:45", interval: 60, count: 12 },
+            "C2007": { startTime: "09:00", interval: 60, count: 12 }, // 补充C2007和C2010的时刻表
+            "C2010": { startTime: "09:00", interval: 60, count: 12 },
+            "S201": { startTime: "06:00", interval: 30, count: 24 }, // 市郊铁路班次更频繁
+            "S202": { startTime: "06:00", interval: 30, count: 24 }
+        };
+
+        // 根据起点和终点获取可用的班次
+        function getAvailableShifts(start, end, selectedDate) {
+            const availableShifts = [];
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const selectedDateObj = new Date(selectedDate);
+            const isToday = selectedDateObj.getTime() === today.getTime();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            
+            // 遍历所有车次
+            for (const [shift, route] of Object.entries(trainRoutes)) {
+                const startIndex = route.indexOf(start);
+                const endIndex = route.indexOf(end);
+                
+                // 检查起点和终点是否都在该车次的路线上，并且起点在终点之前
+                if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+                    // 获取该车次的时刻表
+                    const schedule = trainSchedules[shift];
+                    if (schedule) {
+                        const startTime = schedule.startTime.split(":");
+                        const startHour = parseInt(startTime[0]);
+                        const startMinute = parseInt(startTime[1]);
+                        
+                        // 生成该车次的所有班次时间
+                        for (let i = 0; i < schedule.count; i++) {
+                            const hour = startHour + Math.floor((startMinute + i * schedule.interval) / 60);
+                            const minute = (startMinute + i * schedule.interval) % 60;
+                            const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                            
+                            // 如果是今天，只显示还未发车的班次
+                            if (isToday) {
+                                if (hour > currentHour || (hour === currentHour && minute > currentMinute)) {
+                                    availableShifts.push({
+                                        shift: shift,
+                                        time: timeStr,
+                                        displayText: `${shift} (${timeStr})`
+                                    });
+                                }
+                            } else {
+                                // 如果是未来日期，显示所有班次
+                                availableShifts.push({
+                                    shift: shift,
+                                    time: timeStr,
+                                    displayText: `${shift} (${timeStr})`
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 按时间排序
+            availableShifts.sort((a, b) => {
+                const timeA = a.time.split(":");
+                const timeB = b.time.split(":");
+                const hourA = parseInt(timeA[0]);
+                const minuteA = parseInt(timeA[1]);
+                const hourB = parseInt(timeB[0]);
+                const minuteB = parseInt(timeB[1]);
+                
+                if (hourA !== hourB) {
+                    return hourA - hourB;
+                }
+                return minuteA - minuteB;
+            });
+            
+            return availableShifts;
+        }
+
+        // 更新班次下拉菜单
+        function updateShiftOptions() {
+            const startStation = document.getElementById('start').value;
+            const endStation = document.getElementById('end').value;
+            const departureDate = document.getElementById('departureDate').value;
+            const shiftSelect = document.getElementById('shift');
+            const shiftInfo = document.getElementById('shift-info');
+            
+            // 清空当前选项
+            shiftSelect.innerHTML = '';
+            
+            // 检查必要信息
+            if (!departureDate) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '请先选择出发日期';
+                shiftSelect.appendChild(option);
+                shiftSelect.disabled = true;
+                shiftInfo.textContent = '请选择出发日期';
+                return;
+            }
+            
+            // 如果起点终点相同，显示提示
+            if (startStation === endStation) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '请选择不同的起点和终点';
+                shiftSelect.appendChild(option);
+                shiftSelect.disabled = true;
+                shiftInfo.textContent = '起点和终点不能相同';
+                return;
+            }
+            
+            // 获取可用的班次
+            const availableShifts = getAvailableShifts(startStation, endStation, departureDate);
+            
+            if (availableShifts.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '没有符合条件的班次';
+                shiftSelect.appendChild(option);
+                shiftSelect.disabled = true;
+                shiftInfo.textContent = '当前起点和终点之间没有符合条件的班次';
+            } else {
+                shiftSelect.disabled = false;
+                
+                // 添加默认提示选项
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '请选择班次';
+                shiftSelect.appendChild(defaultOption);
+                
+                // 添加可用班次
+                availableShifts.forEach(shiftInfo => {
+                    const option = document.createElement('option');
+                    option.value = `${shiftInfo.shift}|${shiftInfo.time}`;
+                    option.textContent = shiftInfo.displayText;
+                    shiftSelect.appendChild(option);
+                });
+                
+                shiftInfo.textContent = `共找到 ${availableShifts.length} 个符合条件的班次`;
+            }
+        }
+
+        // 音乐控制
+        const bgMusic = document.getElementById('bgMusic');
+        const musicBtn = document.getElementById('musicBtn');
+        const musicBtnText = document.getElementById('musicBtnText');
+        const musicStatus = document.getElementById('musicStatus');
+        const musicError = document.getElementById('musicError');
+        const volumeSlider = document.getElementById('volumeSlider');
+        let isPlaying = false;
+        let userInteracted = false;
+        
+        // 初始化音乐状态和音量
+        const musicState = localStorage.getItem('musicState');
+        const savedVolume = localStorage.getItem('musicVolume');
+        if (savedVolume !== null) {
+            bgMusic.volume = parseFloat(savedVolume);
+            volumeSlider.value = bgMusic.volume;
+        } else {
+            // 默认音量为50%
+            bgMusic.volume = 0.5;
+            volumeSlider.value = 0.5;
+        }
+        
+        if (musicState === 'playing') {
+            musicBtnText.textContent = "关闭音乐";
+            // 尝试在页面加载后自动播放（需要用户交互）
+            attemptAutoPlayAfterInteraction();
+        }
+        
+        // 绑定音乐控制事件
+        musicBtn.addEventListener('click', toggleMusic);
+        volumeSlider.addEventListener('input', adjustVolume);
+        
+        // 页面首次交互后尝试自动播放音乐
+        function attemptAutoPlayAfterInteraction() {
+            if (!userInteracted) {
+                // 等待用户首次点击
+                document.addEventListener('click', function startMusicAfterFirstInteraction() {
+                    userInteracted = true;
+                    if (musicState === 'playing' && !isPlaying) {
+                        playMusic().catch(e => {
+                            console.log('自动播放失败，需用户手动开启', e);
+                        });
+                    }
+                    // 只需要执行一次
+                    document.removeEventListener('click', startMusicAfterFirstInteraction);
+                }, { once: true });
+            }
+        }
+        
+        // 播放音乐函数
+        async function playMusic() {
+            try {
+                // 如果音频已经暂停或停止，则需要重新加载
+                if (bgMusic.paused || bgMusic.ended) {
+                    bgMusic.load();
+                }
+                
+                await bgMusic.play();
+                isPlaying = true;
+                musicBtnText.textContent = "关闭音乐";
+                musicStatus.classList.add('bg-green-500');
+                musicStatus.classList.remove('bg-gray-300');
+                musicError.style.display = 'none';
+                localStorage.setItem('musicState', 'playing');
+            } catch (e) {
+                console.error('音乐播放失败:', e);
+                isPlaying = false;
+                musicBtnText.textContent = "开启音乐";
+                musicStatus.classList.remove('bg-green-500');
+                musicStatus.classList.add('bg-gray-300');
+                musicError.textContent = `音乐播放失败: ${e.message}。请检查浏览器设置或尝试刷新页面。`;
+                musicError.style.display = 'block';
+                localStorage.setItem('musicState', 'paused');
+            }
+        }
+        
+        // 切换音乐播放状态
+        function toggleMusic() {
+            // 确保用户已经有过交互
+            if (!userInteracted) {
+                userInteracted = true;
+            }
+            
+            if (isPlaying) {
+                bgMusic.pause();
+                isPlaying = false;
+                musicBtnText.textContent = "开启音乐";
+                musicStatus.classList.remove('bg-green-500');
+                musicStatus.classList.add('bg-gray-300');
+                localStorage.setItem('musicState', 'paused');
+            } else {
+                playMusic();
+            }
+        }
+        
+        // 调整音量
+        function adjustVolume() {
+            const volume = parseFloat(volumeSlider.value);
+            bgMusic.volume = volume;
+            localStorage.setItem('musicVolume', volume);
+            
+            // 更新音量图标
+            const volumeIcon = document.querySelector('.volume-icon');
+            if (volume > 0.7) {
+                volumeIcon.textContent = '🔊';
+            } else if (volume > 0) {
+                volumeIcon.textContent = '🔉';
+            } else {
+                volumeIcon.textContent = '🔈';
+            }
+        }
+
+        // 音频事件监听
+        bgMusic.addEventListener('error', function() {
+            console.error('音频加载错误:', bgMusic.error);
+            isPlaying = false;
+            musicBtnText.textContent = "开启音乐";
+            musicStatus.classList.remove('bg-green-500');
+            musicStatus.classList.add('bg-gray-300');
+            musicError.textContent = `音频加载错误: ${bgMusic.error.message || '未知错误'}`;
+            musicError.style.display = 'block';
+            localStorage.setItem('musicState', 'paused');
+        });
+        
+        bgMusic.addEventListener('ended', function() {
+            console.log('音频播放结束');
+            isPlaying = false;
+            musicBtnText.textContent = "开启音乐";
+            musicStatus.classList.remove('bg-green-500');
+            musicStatus.classList.add('bg-gray-300');
+            localStorage.setItem('musicState', 'paused');
+        });
+        
+        bgMusic.addEventListener('play', function() {
+            console.log('音频开始播放');
+            isPlaying = true;
+            musicBtnText.textContent = "关闭音乐";
+            musicStatus.classList.add('bg-green-500');
+            musicStatus.classList.remove('bg-gray-300');
+            musicError.style.display = 'none';
+        });
+        
+        bgMusic.addEventListener('pause', function() {
+            console.log('音频已暂停');
+            isPlaying = false;
+            musicBtnText.textContent = "开启音乐";
+            musicStatus.classList.remove('bg-green-500');
+            musicStatus.classList.add('bg-gray-300');
+        });
+
+        // 动态票价计算显示
+        function updatePricePreview() {
+            const startStation = document.getElementById('start').value;
+            const endStation = document.getElementById('end').value;
+            const distance = Math.abs(stationWeights[startStation] - stationWeights[endStation]);
+            const price = ((distance+2) * 1.0 / 20).toFixed(2);
+
+            const previewEl = document.getElementById('price-preview');
+            previewEl.textContent = `预计票价: ${price} 绿宝石`;
+            
+            // 同时更新班次选项
+            updateShiftOptions();
+        }
+
+        // 车站信息提示
+        function updateStationInfo() {
+            const startStation = document.getElementById('start').value;
+            const endStation = document.getElementById('end').value;
+            const startInfoEl = document.getElementById('start-info');
+            const endInfoEl = document.getElementById('end-info');
+            startInfoEl.textContent = stationDescriptions[startStation];
+            endInfoEl.textContent = stationDescriptions[endStation];
+            
+            // 同时更新班次选项
+            updateShiftOptions();
+        }
+
+        // 初始化日期选择器
+        function initDatePicker() {
+            const dateInput = document.getElementById('departureDate');
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dayAfterTomorrow = new Date(today);
+            dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+            
+            // 设置最小值为今天
+            dateInput.min = today.toISOString().split('T')[0];
+            // 设置最大值为后天
+            dateInput.max = dayAfterTomorrow.toISOString().split('T')[0];
+            // 设置默认值为今天
+            dateInput.value = today.toISOString().split('T')[0];
+        }
+
+        // 双向路线验证
+        function validateAndGenerate() {
+            const startStation = document.getElementById('start').value;
+            const endStation = document.getElementById('end').value;
+            const shiftSelect = document.getElementById('shift');
+            const shiftValue = shiftSelect.value;
+            const playerName = document.getElementById('playerName').value;
+            const departureDate = document.getElementById('departureDate').value;
+            
+            // 验证起点终点
+            if (startStation === endStation) {
+                document.getElementById('form-error-msg').textContent = '起点和终点不能相同，请重新选择！';
+                document.getElementById('form-error-msg').setAttribute('class', 'text-red-500');
+                return;
+            }
+            
+            // 验证日期
+            if (!departureDate) {
+                document.getElementById('form-error-msg').textContent = '请选择出发日期！';
+                document.getElementById('form-error-msg').setAttribute('class', 'text-red-500');
+                return;
+            }
+            
+            // 验证班次选择
+            if (!shiftValue) {
+                document.getElementById('form-error-msg').textContent = '请选择班次！';
+                document.getElementById('form-error-msg').setAttribute('class', 'text-red-500');
+                return;
+            }
+            
+            // 验证玩家名称
+            if (!playerName.trim()) {
+                document.getElementById('form-error-msg').textContent = '请输入游戏名称！';
+                document.getElementById('form-error-msg').setAttribute('class', 'text-red-500');
+                return;
+            }
+            
+            // 验证所选班次是否有效
+            const [selectedShift, selectedTime] = shiftValue.split('|');
+            const availableShifts = getAvailableShifts(startStation, endStation, departureDate);
+            const isValidShift = availableShifts.some(shift => shift.shift === selectedShift && shift.time === selectedTime);
+            
+            if (!isValidShift) {
+                document.getElementById('form-error-msg').textContent = '所选班次不符合当前路线或时间，请重新选择！';
+                document.getElementById('form-error-msg').setAttribute('class', 'text-red-500');
+                return;
+            }
+            
+            // 防止多次点击
+            const generateBtn = document.querySelector('button[onclick="validateAndGenerate()"]');
+            if (generateBtn.disabled) {
+                return; // 如果按钮已被禁用，直接返回
+            }
+            
+            generateTicket();
+        }
+
+        // 生成TID：使用SRD算法处理起始站和终点站权重
+        function generateTID(startStation, endStation) {
+            const startWeight = stationWeights[startStation];
+            const endWeight = stationWeights[endStation];
+            const weightStr = `${startWeight}${endWeight}`;
+            return generateSRD(weightStr);
+        }
+
+        // 生成PID：使用CSRDLC算法处理用户名和日期
+        function generatePID(playerName) {
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+            return generateCSRDLC(`${playerName}${dateStr}`);
+        }
+
+        function generateTicket() {
+            // 获取按钮并禁用，防止多次点击
+            const generateBtn = document.querySelector('button[onclick="validateAndGenerate()"]');
+            const originalText = generateBtn.innerHTML;
+            
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 生成中...';
+            generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // 清空之前的错误信息
+            document.getElementById('form-error-msg').textContent = '正在生成车票，请稍候...';
+            document.getElementById('form-error-msg').setAttribute('class', 'text-yellow-500');
+            
+            const startStation = document.getElementById('start').value;
+            const endStation = document.getElementById('end').value;
+            const playerName = document.getElementById('playerName').value || '未命名玩家';
+            const shiftSelect = document.getElementById('shift');
+            const shiftValue = shiftSelect.value;
+            const departureDate = document.getElementById('departureDate').value;
+            
+            const [shiftCode, departureTime] = shiftValue.split('|');
+            
+            const ticketEl = document.getElementById('ticket');
+            const bgImg = ticketEl.querySelector('.bg-img');
+            const ticketNumberEl = document.getElementById('ticketNumber');
+            const passengerIdEl = document.getElementById('passengerId');
+            const routeEl = document.getElementById('route');
+            const timeEl = document.getElementById('time');
+            const playerNameDisplayEl = document.getElementById('playerNameDisplay');
+            const shiftDisplayEl = document.getElementById('shiftDisplay');
+            const priceDisplayEl = document.getElementById('priceDisplay');
+
+            ticketEl.classList.add('hidden');
+            ticketEl.classList.remove('block');
+            
+            // 计算票价（根据距离权重）
+            const distance = Math.abs(stationWeights[startStation] - stationWeights[endStation]);
+            const price = ((distance+2) * 1.0 / 20).toFixed(2);
+            priceDisplayEl.textContent = `${price} 绿宝石`;
+
+            // 生成TID和PID
+            const tid = generateTID(startStation, endStation);
+            const pid = generatePID(playerName);
+            
+            ticketNumberEl.textContent = `TID: ${tid}`;
+            passengerIdEl.textContent = `PID: ${pid}`;
+            
+            // 设置背景图
+            bgImg.src = `${startStation}.png`;
+
+            // 设置路线信息
+            routeEl.dataset.start = startStation;
+            routeEl.dataset.end = endStation;
+
+            // 生成车票时间戳（显示出发时间）
+            const dateObj = new Date(departureDate);
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const formatTime = `${year}年${month}月${day}日 ${departureTime} 开`;
+            timeEl.textContent = formatTime;
+
+            // 设置玩家名称和班次
+            playerNameDisplayEl.textContent = playerName;
+            shiftDisplayEl.textContent = `${shiftCode} (${departureTime})`;
+
+            // 存储历史记录
+            const history = JSON.parse(localStorage.getItem('ticketHistory')) || [];
+            history.push({
+                start: startStation,
+                end: endStation,
+                playerName: playerName,
+                shift: shiftCode,
+                departureTime: departureTime,
+                departureDate: departureDate,
+                price: price,
+                time: formatTime,
+                tid: tid,
+                pid: pid
+            });
+            localStorage.setItem('ticketHistory', JSON.stringify(history));
+            document.getElementById('form-error-msg').textContent = `车票生成成功！`;
+            document.getElementById('form-error-msg').setAttribute('class', 'text-green-500');
+
+            // 显示历史记录
+            updateHistoryTable();
+
+            ticketEl.classList.remove('hidden');
+            ticketEl.classList.add('block');
+            
+            // 恢复按钮状态
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = originalText;
+            generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        // 生成随机英文玩家名
+        function generateRandomPlayerName() {
+            const length = Math.floor(Math.random() * 5) + 3; // 3-7个字符
+            let result = '';
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            for (let i = 0; i < length; i++) {
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return result;
+        }
+
+        // 随机生成功能
+        function generateRandomTicket() {
+            const stations = Object.keys(stationWeights);
+            let startStation, endStation;
+            do {
+                startStation = stations[Math.floor(Math.random() * stations.length)];
+                endStation = stations[Math.floor(Math.random() * stations.length)];
+            } while (startStation === endStation);
+
+            document.getElementById('start').value = startStation;
+            document.getElementById('end').value = endStation;
+
+            // 随机选择日期（今天、明天或后天）
+            const today = new Date();
+            const randomDay = Math.floor(Math.random() * 3); // 0: 今天, 1: 明天, 2: 后天
+            const selectedDate = new Date(today);
+            selectedDate.setDate(today.getDate() + randomDay);
+            document.getElementById('departureDate').value = selectedDate.toISOString().split('T')[0];
+
+            updatePricePreview();
+            updateStationInfo();
+            updateShiftOptions();
+            
+            // 获取可用班次并随机选择一个
+            const availableShifts = getAvailableShifts(startStation, endStation, selectedDate.toISOString().split('T')[0]);
+            if (availableShifts.length > 0) {
+                const randomShift = availableShifts[Math.floor(Math.random() * availableShifts.length)];
+                document.getElementById('shift').value = `${randomShift.shift}|${randomShift.time}`;
+            }
+            
+            const randomName = generateRandomPlayerName();
+            document.getElementById('playerName').value = randomName;
+            
+            // 延迟生成车票，确保UI更新完成
+            setTimeout(() => {
+                if (availableShifts.length > 0) {
+                    generateTicket();
+                } else {
+                    document.getElementById('form-error-msg').textContent = '随机生成的路线没有可用班次，请手动调整';
+                    document.getElementById('form-error-msg').setAttribute('class', 'text-red-500');
+                }
+            }, 100);
+        }
+
+        function viewHistory(index) {
+            const history = JSON.parse(localStorage.getItem('ticketHistory')) || [];
+            if (history.length <= index) return;
+            
+            const record = history[index];
+            const ticketEl = document.getElementById('ticket');
+            const bgImg = ticketEl.querySelector('.bg-img');
+            const ticketNumberEl = document.getElementById('ticketNumber');
+            const passengerIdEl = document.getElementById('passengerId');
+            const routeEl = document.getElementById('route');
+            const timeEl = document.getElementById('time');
+            const playerNameDisplayEl = document.getElementById('playerNameDisplay');
+            const shiftDisplayEl = document.getElementById('shiftDisplay');
+            const priceDisplayEl = document.getElementById('priceDisplay');
+
+            ticketEl.classList.remove('hidden');
+            ticketEl.classList.add('block');
+            
+            // 设置背景图
+            bgImg.src = `${record.start}.png`;
+
+            // 设置路线信息
+            routeEl.dataset.start = record.start;
+            routeEl.dataset.end = record.end;
+
+            // 设置ID信息
+            ticketNumberEl.textContent = `TID: ${record.tid}`;
+            passengerIdEl.textContent = `PID: ${record.pid}`;
+            
+            // 设置时间
+            timeEl.textContent = record.time;
+
+            // 设置玩家名称和班次
+            playerNameDisplayEl.textContent = record.playerName;
+            shiftDisplayEl.textContent = `${record.shift} (${record.departureTime || '未记录时间'})`;
+            
+            // 设置价格
+            priceDisplayEl.textContent = `${record.price} 绿宝石`;
+        }
+
+        function updateHistoryTable() {
+            const history = JSON.parse(localStorage.getItem('ticketHistory')) || [];
+            const historyBody = document.getElementById('historyBody');
+            historyBody.innerHTML = '';
+            
+            if (history.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = '<td colspan="8" class="px-4 py-6 text-center text-gray-500">暂无历史记录</td>';
+                historyBody.appendChild(emptyRow);
+            } else {
+                // 按时间倒序排列
+                history.slice().reverse().forEach((record, index) => {
+                    const reversedIndex = history.length - 1 - index;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-4 py-3">${record.start}</td>
+                        <td class="px-4 py-3">${record.end}</td>
+                        <td class="px-4 py-3">${record.playerName}</td>
+                        <td class="px-4 py-3">${record.shift}</td>
+                        <td class="px-4 py-3">${record.departureTime || '未记录'}</td>
+                        <td class="px-4 py-3">${record.price} 绿宝石</td>
+                        <td class="px-4 py-3">${record.time}</td>
+                        <td class="px-4 py-3">
+                            <button class="btn-hover text-white bg-blue-500 px-1 py-1 rounded-lg text-sm" onclick="viewHistory(${reversedIndex})">
+                                查看
+                            </button>
+                        </td>
+                    `;
+                    historyBody.appendChild(row);
+                });
+            }
+        }
+
+        // 初始化
+        initDatePicker();
+        updatePricePreview();
+        updateStationInfo();
+        updateShiftOptions();
+        updateHistoryTable();
+        
+        // 添加事件监听
+        document.getElementById('start').addEventListener('change', function() {
+            updatePricePreview();
+            updateStationInfo();
+            updateShiftOptions();
+        });
+        
+        document.getElementById('end').addEventListener('change', function() {
+            updatePricePreview();
+            updateStationInfo();
+            updateShiftOptions();
+        });
+        
+        document.getElementById('departureDate').addEventListener('change', function() {
+            updateShiftOptions();
+        });
+    </script>
+</body>
+</html>
